@@ -329,11 +329,12 @@ ASTPointer<ContractDefinition> Parser::parseContractDefinition()
 				baseContracts.push_back(parseInheritanceSpecifier());
 			}
 			while (m_scanner->currentToken() == Token::Comma);
-		expectToken(Token::LBrace);
+		expectToken(Token::Semicolon);
+		expectToken(Token::Begin);
 		while (true)
 		{
 			Token currentTokenValue = m_scanner->currentToken();
-			if (currentTokenValue == Token::RBrace)
+			if (currentTokenValue == Token::End)
 				break;
 			else if (
 				(currentTokenValue == Token::Function && m_scanner->peekNextToken() != Token::LParen) ||
@@ -376,9 +377,10 @@ ASTPointer<ContractDefinition> Parser::parseContractDefinition()
 	}
 	nodeFactory.markEndPosition();
 	if (m_inParserRecovery)
-		expectTokenOrConsumeUntil(Token::RBrace, "ContractDefinition");
+		expectTokenOrConsumeUntil(Token::End, "ContractDefinition");
 	else
-		expectToken(Token::RBrace);
+		expectToken(Token::End);
+	expectToken(Token::Period);
 	return nodeFactory.createNode<ContractDefinition>(
 		name,
 		documentation,
@@ -606,14 +608,15 @@ ASTPointer<ASTNode> Parser::parseFunctionDefinition(bool _freeFunction, bool _li
 
 	FunctionHeaderParserResult header = parseFunctionHeader(false);
 
+	expectToken(Token::Semicolon);
+
 	ASTPointer<Block> block;
 	nodeFactory.markEndPosition();
-	if (m_scanner->currentToken() == Token::Semicolon)
-		m_scanner->next();
-	else
+	if (m_scanner->currentToken() == Token::Begin)
 	{
 		block = parseBlock();
 		nodeFactory.setEndPositionFromNode(block);
+		expectToken(Token::Semicolon);
 	}
 	return nodeFactory.createNode<FunctionDefinition>(
 		name,
@@ -1111,11 +1114,11 @@ ASTPointer<Block> Parser::parseBlock(bool _allowUnchecked, ASTPointer<ASTString>
 			parserError(5296_error, "\"unchecked\" blocks can only be used inside regular blocks.");
 		m_scanner->next();
 	}
-	expectToken(Token::LBrace);
+	expectToken(Token::Begin);
 	vector<ASTPointer<Statement>> statements;
 	try
 	{
-		while (m_scanner->currentToken() != Token::RBrace)
+		while (m_scanner->currentToken() != Token::End)
 			statements.push_back(parseStatement(true));
 		nodeFactory.markEndPosition();
 	}
@@ -1130,9 +1133,9 @@ ASTPointer<Block> Parser::parseBlock(bool _allowUnchecked, ASTPointer<ASTString>
 		m_inParserRecovery = true;
 	}
 	if (m_inParserRecovery)
-		expectTokenOrConsumeUntil(Token::RBrace, "Block");
+		expectTokenOrConsumeUntil(Token::End, "Block");
 	else
-		expectToken(Token::RBrace);
+		expectToken(Token::End);
 	return nodeFactory.createNode<Block>(_docString, unchecked, statements);
 }
 

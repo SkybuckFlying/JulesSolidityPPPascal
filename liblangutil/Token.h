@@ -114,6 +114,7 @@ namespace solidity::langutil
 	K(Anonymous, "anonymous", 0)                                       \
 	K(As, "as", 0)                                                     \
 	K(Assembly, "assembly", 0)                                         \
+	K(Begin, "begin", 0)                                               \
 	K(Break, "break", 0)                                               \
 	K(Catch, "catch", 0)                                               \
 	K(Constant, "constant", 0)                                         \
@@ -122,6 +123,7 @@ namespace solidity::langutil
 	K(Contract, "contract", 0)                                         \
 	K(Do, "do", 0)                                                     \
 	K(Else, "else", 0)                                                 \
+	K(End, "end", 0)                                                   \
 	K(Enum, "enum", 0)                                                 \
 	K(Emit, "emit", 0)                                                 \
 	/* Solidity++: send keyword for send statement */				   \
@@ -151,6 +153,7 @@ namespace solidity::langutil
 	K(Public, "public", 0)                                             \
 	K(Pragma, "pragma", 0)                                             \
 	K(Private, "private", 0)                                           \
+	K(Procedure, "procedure", 0)                                       \
 	K(Pure, "pure", 0)                                                 \
 	K(Receive, "receive", 0)                                           \
 	K(Return, "return", 0)                                             \
@@ -159,11 +162,13 @@ namespace solidity::langutil
 	K(CallData, "calldata", 0)                                         \
 	K(Struct, "struct", 0)                                             \
 	K(Throw, "throw", 0)                                               \
+	K(Then, "then", 0)                                                 \
 	K(Try, "try", 0)                                                   \
 	K(Type, "type", 0)                                                 \
 	K(Unchecked, "unchecked", 0)                                       \
 	K(Unicode, "unicode", 0)                                           \
 	K(Using, "using", 0)                                               \
+	K(Var, "var", 0)                                                   \
 	K(View, "view", 0)                                                 \
 	K(Virtual, "virtual", 0)                                           \
 	K(While, "while", 0)                                               \
@@ -243,7 +248,6 @@ namespace solidity::langutil
 	K(Switch, "switch", 0)                                             \
 	K(Typedef, "typedef", 0)                                           \
 	K(TypeOf, "typeof", 0)                                             \
-	K(Var, "var", 0)                                                   \
 	\
 	/* Solidity++ keywords */                            			   \
     K(Async, "async", 0)                                               \

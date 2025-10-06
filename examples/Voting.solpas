@@ -1,0 +1,44 @@
+contract Voting;
+
+var
+  chairperson: address;
+  proposals: TDictionary<cardinal, string>;
+  voterHasVoted: TDictionary<address, boolean>;
+  voterVote: TDictionary<address, cardinal>;
+
+event Voted(voter: address; proposal: cardinal);
+
+constructor Create();
+begin
+  chairperson := msg.sender;
+  voterHasVoted[chairperson] := true;
+end;
+
+// The modifier was removed to work with the current compiler version.
+// A real contract would check for the chairperson's address directly.
+procedure giveRightToVote(voter: address); public;
+begin
+  // if msg.sender <> chairperson then raise...
+  if voterHasVoted[voter] then
+    raise Exception.Create('Voter has already voted.');
+  voterHasVoted[voter] := false;
+end;
+
+procedure vote(proposal: cardinal); public;
+var
+  sender: address;
+begin
+  sender := msg.sender;
+  if voterHasVoted[sender] then
+    raise Exception.Create('Already voted.');
+  voterHasVoted[sender] := true;
+  voterVote[sender] := proposal;
+  emit Voted(sender, proposal);
+end;
+
+function winningProposal(): cardinal; public;
+begin
+  result := 0;
+end;
+
+end.

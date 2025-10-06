@@ -1,0 +1,34 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{E3C3AAB4-8A64-4E1B-9A4B-A5559C3A6237}</ProjectGuid>
+        <MainSource>solpas_compiler.dpr</MainSource>
+        <Base>true</Base>
+        <Config Condition="'$(Config)'==''">Debug</Config>
+        <Platform Condition="'$(Platform)'==''">Win32</Platform>
+        <TargetedPlatforms>1</TargetedPlatforms>
+        <AppType>Console</AppType>
+        <FrameworkType>None</FrameworkType>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win32'">
+        <DCC_Optimize>false</DCC_Optimize>
+        <DCC_Define>DEBUG</DCC_Define>
+        <DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
+        <DCC_UnitSearchPath>src;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+    </PropertyGroup>
+    <ItemGroup>
+        <DCCReference Include="solpas_compiler.dpr">
+            <MainSource>true</MainSource>
+        </DCCReference>
+        <DCCReference Include="src\Lexer.pas"/>
+        <DCCReference Include="src\Token.pas"/>
+        <DCCReference Include="src\AST.pas"/>
+        <DCCReference Include="src\Parser.pas"/>
+        <DCCReference Include="src\SemanticAnalyzer.pas"/>
+        <DCCReference Include="src\SymbolTable.pas"/>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Delphi.Personality.12</Borland.Personality>
+        <Borland.ProjectType>Application</Borland.ProjectType>
+    </ProjectExtensions>
+    <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
+</Project>
