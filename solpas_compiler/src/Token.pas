@@ -1,6 +1,8 @@
 unit Token;
 
-{$MODE OBJFPC}{$H+}
+{$IFDEF FPC}
+  {$MODE OBJFPC}{$H+}
+{$ENDIF}
 
 interface
 

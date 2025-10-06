@@ -1,6 +1,8 @@
 unit AST;
 
-{$MODE OBJFPC}{$H+}
+{$IFDEF FPC}
+  {$MODE OBJFPC}{$H+}
+{$ENDIF}
 
 interface
 
@@ -78,7 +80,11 @@ type
     property Name: string read FName;
   end;
 
+{$IFDEF FPC}
   TASTNodeList = specialize TList<TASTNode>;
+{$ELSE}
+  TASTNodeList = TList<TASTNode>;
+{$ENDIF}
 
   TContractNode = class(TASTNode)
   private
