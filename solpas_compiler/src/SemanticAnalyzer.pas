@@ -1,8 +1,6 @@
 unit SemanticAnalyzer;
 
-{$IFDEF FPC}
-  {$MODE OBJFPC}{$H+}
-{$ENDIF}
+{$MODE OBJFPC}{$H+}
 
 interface
 
@@ -21,6 +19,10 @@ type
     procedure VisitFunctionDeclarationNode(ANode: TFunctionDeclarationNode);
     procedure VisitConstructorDeclarationNode(ANode: TConstructorDeclarationNode);
     procedure VisitTypeDeclarationNode(ANode: TTypeDeclarationNode);
+    procedure VisitAssignmentStatementNode(ANode: TAssignmentStatementNode);
+    procedure VisitVariableReferenceNode(ANode: TVariableReferenceNode);
+    procedure VisitIntegerLiteralNode(ANode: TIntegerLiteralNode);
+    procedure VisitBooleanLiteralNode(ANode: TBooleanLiteralNode);
   public
     constructor Create;
     destructor Destroy; override;
@@ -72,6 +74,9 @@ end;
 
 procedure TSemanticAnalyzer.Visit(ANode: TASTNode);
 begin
+  if not Assigned(ANode) then
+    Exit;
+
   if ANode is TContractNode then
     VisitContractNode(TContractNode(ANode))
   else if ANode is TVariableDeclarationNode then
@@ -86,6 +91,14 @@ begin
     VisitConstructorDeclarationNode(TConstructorDeclarationNode(ANode))
   else if ANode is TTypeDeclarationNode then
     VisitTypeDeclarationNode(TTypeDeclarationNode(ANode))
+  else if ANode is TAssignmentStatementNode then
+    VisitAssignmentStatementNode(TAssignmentStatementNode(ANode))
+  else if ANode is TVariableReferenceNode then
+    VisitVariableReferenceNode(TVariableReferenceNode(ANode))
+  else if ANode is TIntegerLiteralNode then
+    VisitIntegerLiteralNode(TIntegerLiteralNode(ANode))
+  else if ANode is TBooleanLiteralNode then
+    VisitBooleanLiteralNode(TBooleanLiteralNode(ANode))
   else
     raise Exception.Create('Unsupported AST node type');
 end;
@@ -114,7 +127,6 @@ begin
   FullTypeName := ANode.VarType.Name;
   BaseTypeName := FullTypeName;
 
-  // Handle generic types like TDictionary<address, cardinal>
   if Pos('<', FullTypeName) > 0 then
     BaseTypeName := LeftStr(FullTypeName, Pos('<', FullTypeName) - 1);
 
@@ -130,7 +142,6 @@ procedure TSemanticAnalyzer.VisitEventDeclarationNode(ANode: TEventDeclarationNo
 var
   Symbol: TSymbol;
 begin
-  // For now, just register the event name
   Symbol := TSymbol.Create(ANode.Name, ANode);
   if not FCurrentScope.Define(Symbol) then
     raise Exception.CreateFmt('Duplicate identifier: %s', [ANode.Name]);
@@ -139,37 +150,78 @@ end;
 procedure TSemanticAnalyzer.VisitProcedureDeclarationNode(ANode: TProcedureDeclarationNode);
 var
   Symbol: TSymbol;
+  Statement: TStatementNode;
+  ProcScope: TSymbolTable;
 begin
-  // For now, just register the procedure name
   Symbol := TSymbol.Create(ANode.Name, ANode);
   if not FCurrentScope.Define(Symbol) then
     raise Exception.CreateFmt('Duplicate identifier: %s', [ANode.Name]);
+
+  ProcScope := TSymbolTable.Create(FCurrentScope);
+  FCurrentScope := ProcScope;
+
+  for Statement in ANode.Body do
+    Visit(Statement);
+
+  FCurrentScope := FCurrentScope.Parent;
+  ProcScope.Free;
 end;
 
 procedure TSemanticAnalyzer.VisitFunctionDeclarationNode(ANode: TFunctionDeclarationNode);
 var
   Symbol: TSymbol;
+  Statement: TStatementNode;
+  FuncScope: TSymbolTable;
 begin
-  // For now, just register the function name
   Symbol := TSymbol.Create(ANode.Name, ANode);
   if not FCurrentScope.Define(Symbol) then
     raise Exception.CreateFmt('Duplicate identifier: %s', [ANode.Name]);
+
+  FuncScope := TSymbolTable.Create(FCurrentScope);
+  FCurrentScope := FuncScope;
+
+  for Statement in ANode.Body do
+    Visit(Statement);
+
+  FCurrentScope := FCurrentScope.Parent;
+  FuncScope.Free;
 end;
 
 procedure TSemanticAnalyzer.VisitConstructorDeclarationNode(ANode: TConstructorDeclarationNode);
 begin
   // For now, we don't need to do anything special.
-  // In the future, we would analyze the constructor's body.
 end;
 
 procedure TSemanticAnalyzer.VisitTypeDeclarationNode(ANode: TTypeDeclarationNode);
 var
   Symbol: TSymbol;
 begin
-  // Register the new type in the current scope.
   Symbol := TSymbol.Create(ANode.Name, ANode);
   if not FCurrentScope.Define(Symbol) then
     raise Exception.CreateFmt('Duplicate identifier: %s', [ANode.Name]);
+end;
+
+procedure TSemanticAnalyzer.VisitAssignmentStatementNode(ANode: TAssignmentStatementNode);
+begin
+  Visit(ANode.Variable);
+  Visit(ANode.Expression);
+  // Type checking would go here in a real compiler
+end;
+
+procedure TSemanticAnalyzer.VisitVariableReferenceNode(ANode: TVariableReferenceNode);
+begin
+  if FCurrentScope.Resolve(ANode.Name) = nil then
+    raise Exception.CreateFmt('Undeclared identifier: %s', [ANode.Name]);
+end;
+
+procedure TSemanticAnalyzer.VisitIntegerLiteralNode(ANode: TIntegerLiteralNode);
+begin
+  // No analysis needed for a literal
+end;
+
+procedure TSemanticAnalyzer.VisitBooleanLiteralNode(ANode: TBooleanLiteralNode);
+begin
+  // No analysis needed for a literal
 end;
 
 end.

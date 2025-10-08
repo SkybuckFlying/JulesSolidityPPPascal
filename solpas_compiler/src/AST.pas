@@ -1,8 +1,6 @@
 unit AST;
 
-{$IFDEF FPC}
-  {$MODE OBJFPC}{$H+}
-{$ENDIF}
+{$MODE OBJFPC}{$H+}
 
 interface
 
@@ -16,8 +14,44 @@ type
   end;
 
   TExpressionNode = class(TASTNode);
-
   TStatementNode = class(TASTNode);
+
+  TStatementList = specialize TList<TStatementNode>;
+
+  TVariableReferenceNode = class(TExpressionNode)
+  private
+    FName: string;
+  public
+    constructor Create(AName: string);
+    property Name: string read FName;
+  end;
+
+  TIntegerLiteralNode = class(TExpressionNode)
+  private
+    FValue: integer;
+  public
+    constructor Create(AValue: integer);
+    property Value: integer read FValue;
+  end;
+
+  TBooleanLiteralNode = class(TExpressionNode)
+  private
+    FValue: boolean;
+  public
+    constructor Create(AValue: boolean);
+    property Value: boolean read FValue;
+  end;
+
+  TAssignmentStatementNode = class(TStatementNode)
+  private
+    FVariable: TVariableReferenceNode;
+    FExpression: TExpressionNode;
+  public
+    constructor Create(AVariable: TVariableReferenceNode; AExpression: TExpressionNode);
+    destructor Destroy; override;
+    property Variable: TVariableReferenceNode read FVariable;
+    property Expression: TExpressionNode read FExpression;
+  end;
 
   TTypeSpecifierNode = class(TASTNode)
   private
@@ -41,25 +75,28 @@ type
   TFunctionDeclarationNode = class(TASTNode)
   private
     FName: string;
-    // Add parameters, return type, and body later
+    FBody: TStatementList;
   public
-    constructor Create(AName: string);
+    constructor Create(AName: string; ABody: TStatementList);
+    destructor Destroy; override;
     property Name: string read FName;
-  end;
-
-  TEventDeclarationNode = class(TASTNode)
-  private
-    FName: string;
-    // Add parameters later
-  public
-    constructor Create(AName: string);
-    property Name: string read FName;
+    property Body: TStatementList read FBody;
   end;
 
   TProcedureDeclarationNode = class(TASTNode)
   private
     FName: string;
-    // Add parameters and body later
+    FBody: TStatementList;
+  public
+    constructor Create(AName: string; ABody: TStatementList);
+    destructor Destroy; override;
+    property Name: string read FName;
+    property Body: TStatementList read FBody;
+  end;
+
+  TEventDeclarationNode = class(TASTNode)
+  private
+    FName: string;
   public
     constructor Create(AName: string);
     property Name: string read FName;
@@ -67,24 +104,18 @@ type
 
   TConstructorDeclarationNode = class(TASTNode)
   public
-    // Add parameters and body later
     constructor Create;
   end;
 
   TTypeDeclarationNode = class(TASTNode)
   private
     FName: string;
-    // For now, we don't parse the structure of the type, just its name
   public
     constructor Create(AName: string);
     property Name: string read FName;
   end;
 
-{$IFDEF FPC}
   TASTNodeList = specialize TList<TASTNode>;
-{$ELSE}
-  TASTNodeList = TList<TASTNode>;
-{$ENDIF}
 
   TContractNode = class(TASTNode)
   private
@@ -102,6 +133,46 @@ type
 implementation
 
 uses SysUtils;
+
+{ TVariableReferenceNode }
+
+constructor TVariableReferenceNode.Create(AName: string);
+begin
+  inherited Create;
+  FName := AName;
+end;
+
+{ TIntegerLiteralNode }
+
+constructor TIntegerLiteralNode.Create(AValue: integer);
+begin
+  inherited Create;
+  FValue := AValue;
+end;
+
+{ TBooleanLiteralNode }
+
+constructor TBooleanLiteralNode.Create(AValue: boolean);
+begin
+  inherited Create;
+  FValue := AValue;
+end;
+
+{ TAssignmentStatementNode }
+
+constructor TAssignmentStatementNode.Create(AVariable: TVariableReferenceNode; AExpression: TExpressionNode);
+begin
+  inherited Create;
+  FVariable := AVariable;
+  FExpression := AExpression;
+end;
+
+destructor TAssignmentStatementNode.Destroy;
+begin
+  FVariable.Free;
+  FExpression.Free;
+  inherited;
+end;
 
 { TTypeSpecifierNode }
 
@@ -128,23 +199,45 @@ end;
 
 { TFunctionDeclarationNode }
 
-constructor TFunctionDeclarationNode.Create(AName: string);
+constructor TFunctionDeclarationNode.Create(AName: string; ABody: TStatementList);
 begin
   inherited Create;
   FName := AName;
+  FBody := ABody;
+end;
+
+destructor TFunctionDeclarationNode.Destroy;
+var
+  Node: TStatementNode;
+begin
+  for Node in FBody do
+    Node.Free;
+  FBody.Free;
+  inherited;
+end;
+
+{ TProcedureDeclarationNode }
+
+constructor TProcedureDeclarationNode.Create(AName: string; ABody: TStatementList);
+begin
+  inherited Create;
+  FName := AName;
+  FBody := ABody;
+end;
+
+destructor TProcedureDeclarationNode.Destroy;
+var
+  Node: TStatementNode;
+begin
+  for Node in FBody do
+    Node.Free;
+  FBody.Free;
+  inherited;
 end;
 
 { TEventDeclarationNode }
 
 constructor TEventDeclarationNode.Create(AName: string);
-begin
-  inherited Create;
-  FName := AName;
-end;
-
-{ TProcedureDeclarationNode }
-
-constructor TProcedureDeclarationNode.Create(AName: string);
 begin
   inherited Create;
   FName := AName;

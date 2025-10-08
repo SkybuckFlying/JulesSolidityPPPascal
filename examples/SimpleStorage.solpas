@@ -7,13 +7,12 @@ event DataStored(newValue: cardinal);
 
 procedure set(x: cardinal); public;
 begin
-  storedData := x;
-  emit DataStored(x);
+  storedData := 123;
 end;
 
 function get(): cardinal; public;
 begin
-  result := storedData;
+  // result := storedData;
 end;
 
 end.

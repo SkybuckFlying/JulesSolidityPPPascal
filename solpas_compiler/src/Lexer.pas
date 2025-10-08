@@ -1,8 +1,6 @@
 unit Lexer;
 
-{$IFDEF FPC}
-  {$MODE OBJFPC}{$H+}
-{$ENDIF}
+{$MODE OBJFPC}{$H+}
 
 interface
 
@@ -167,6 +165,8 @@ begin
   else if AIdentifier = 'emit' then Result := ttEmit
   else if AIdentifier = 'modifier' then Result := ttModifier
   else if AIdentifier = 'constructor' then Result := ttConstructor
+  else if AIdentifier = 'true' then Result := ttTrue
+  else if AIdentifier = 'false' then Result := ttFalse
   else Result := ttIdentifier;
 end;
 

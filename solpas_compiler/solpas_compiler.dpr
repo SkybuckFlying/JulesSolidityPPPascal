@@ -11,7 +11,8 @@ uses
   AST in 'src/AST.pas',
   Parser in 'src/Parser.pas',
   SemanticAnalyzer in 'src/SemanticAnalyzer.pas',
-  CodeGenerator in 'src/CodeGenerator.pas';
+  CodeGenerator in 'src/CodeGenerator.pas',
+  Bytecode in 'src/Bytecode.pas';
 
 var
   SourceCode: string;
@@ -20,8 +21,10 @@ var
   TheAST: TASTNode;
   Analyzer: TSemanticAnalyzer;
   Generator: TCodeGenerator;
-  FilePath: string;
+  Chunk: TChunk;
+  FilePath, OutputFilePath: string;
   StringList: TStringList;
+  FileStream: TFileStream;
 begin
   try
     if ParamCount < 1 then
@@ -56,12 +59,30 @@ begin
 
     Generator := TCodeGenerator.Create;
     try
-      Generator.Generate(TheAST);
+      Chunk := Generator.Generate(TheAST);
+      writeln('Code generation successful.');
+
+      if Chunk.Count > 0 then
+      begin
+        OutputFilePath := ChangeFileExt(FilePath, '.spb');
+        FileStream := TFileStream.Create(OutputFilePath, fmCreate);
+        try
+          FileStream.WriteBuffer(Chunk.GetCode[0], Chunk.Count);
+          writeln('Bytecode written to: ', OutputFilePath);
+        finally
+          FileStream.Free;
+        end;
+      end
+      else
+      begin
+        writeln('No executable code generated.');
+      end;
+
     finally
       Generator.Free;
     end;
 
-    writeln('Compilation successful.');
+    writeln('Compilation finished.');
 
   except
     on E: Exception do

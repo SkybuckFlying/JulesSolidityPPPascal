@@ -1,8 +1,6 @@
 unit SymbolTable;
 
-{$IFDEF FPC}
-  {$MODE OBJFPC}{$H+}
-{$ENDIF}
+{$MODE OBJFPC}{$H+}
 
 interface
 
@@ -20,11 +18,7 @@ type
     property SymbolType: TASTNode read FType;
   end;
 
-{$IFDEF FPC}
   TSymbolDictionary = specialize TDictionary<string, TSymbol>;
-{$ELSE}
-  TSymbolDictionary = TDictionary<string, TSymbol>;
-{$ENDIF}
 
   TSymbolTable = class
   private

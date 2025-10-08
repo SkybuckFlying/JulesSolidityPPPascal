@@ -1,8 +1,6 @@
 unit Token;
 
-{$IFDEF FPC}
-  {$MODE OBJFPC}{$H+}
-{$ENDIF}
+{$MODE OBJFPC}{$H+}
 
 interface
 
@@ -38,6 +36,8 @@ type
     // Literals
     ttIntegerLiteral,
     ttStringLiteral,
+    ttTrue,
+    ttFalse,
 
     // Operators and Delimiters
     ttPlus,
