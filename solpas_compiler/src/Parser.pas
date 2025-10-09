@@ -20,6 +20,9 @@ type
     function ParseStatementList: TStatementList;
     function ParseStatement: TStatementNode;
     function ParseAssignmentStatement: TAssignmentStatementNode;
+    function ParseIfStatement: TIfStatementNode;
+    function ParseEmitStatement: TEmitStatementNode;
+    function ParseParameterList: TParameterList;
     function ParseExpression: TExpressionNode;
     function ParseProcedureDeclaration: TProcedureDeclarationNode;
     function ParseFunctionDeclaration: TFunctionDeclarationNode;
@@ -136,6 +139,8 @@ end;
 function TParser.ParseExpression: TExpressionNode;
 var
   Token: TToken;
+  Node: TExpressionNode;
+  MemberName: string;
 begin
   Result := nil;
   Token := FCurrentToken;
@@ -143,26 +148,36 @@ begin
     ttIntegerLiteral:
       begin
         Eat(ttIntegerLiteral);
-        Result := TIntegerLiteralNode.Create(StrToInt(Token.Lexeme));
+        Node := TIntegerLiteralNode.Create(StrToInt(Token.Lexeme));
       end;
     ttTrue:
       begin
         Eat(ttTrue);
-        Result := TBooleanLiteralNode.Create(true);
+        Node := TBooleanLiteralNode.Create(true);
       end;
     ttFalse:
       begin
         Eat(ttFalse);
-        Result := TBooleanLiteralNode.Create(false);
+        Node := TBooleanLiteralNode.Create(false);
       end;
     ttIdentifier:
       begin
         Eat(ttIdentifier);
-        Result := TVariableReferenceNode.Create(Token.Lexeme);
+        Node := TVariableReferenceNode.Create(Token.Lexeme);
       end;
   else
     raise Exception.CreateFmt('Unexpected token in expression: %s', [Token.Lexeme]);
   end;
+
+  if FCurrentToken.TokenType = ttDot then
+  begin
+    Eat(ttDot);
+    MemberName := FCurrentToken.Lexeme;
+    Eat(ttIdentifier);
+    Node := TMemberAccessNode.Create(Node, MemberName);
+  end;
+
+  Result := Node;
 end;
 
 function TParser.ParseAssignmentStatement: TAssignmentStatementNode;
@@ -183,10 +198,50 @@ begin
   case FCurrentToken.TokenType of
     ttIdentifier:
       Result := ParseAssignmentStatement;
+    ttIf:
+      Result := ParseIfStatement;
+    ttEmit:
+      Result := ParseEmitStatement;
   else
-    // In a real parser, we would handle more statement types here.
     raise Exception.CreateFmt('Unexpected token in statement: %s', [FCurrentToken.Lexeme]);
   end;
+end;
+
+function TParser.ParseEmitStatement: TEmitStatementNode;
+var
+  EventName: string;
+  Args: TExpressionList;
+begin
+  Eat(ttEmit);
+  EventName := FCurrentToken.Lexeme;
+  Eat(ttIdentifier);
+
+  Args := TExpressionList.Create;
+  Eat(ttLParen);
+  if FCurrentToken.TokenType <> ttRParen then
+  begin
+    Args.Add(ParseExpression);
+    while FCurrentToken.TokenType = ttComma do
+    begin
+      Eat(ttComma);
+      Args.Add(ParseExpression);
+    end;
+  end;
+  Eat(ttRParen);
+
+  Result := TEmitStatementNode.Create(EventName, Args);
+end;
+
+function TParser.ParseIfStatement: TIfStatementNode;
+var
+  Condition: TExpressionNode;
+  ThenBranch: TStatementList;
+begin
+  Eat(ttIf);
+  Condition := ParseExpression;
+  Eat(ttThen);
+  ThenBranch := ParseStatementList;
+  Result := TIfStatementNode.Create(Condition, ThenBranch);
 end;
 
 function TParser.ParseStatementList: TStatementList;
@@ -201,61 +256,114 @@ begin
   Eat(ttEnd);
 end;
 
+function TParser.ParseParameterList: TParameterList;
+var
+  ParamName: string;
+  ParamType: TTypeSpecifierNode;
+begin
+  Result := TParameterList.Create;
+  Eat(ttLParen);
+  if FCurrentToken.TokenType <> ttRParen then
+  begin
+    ParamName := FCurrentToken.Lexeme;
+    Eat(ttIdentifier);
+    Eat(ttColon);
+    ParamType := ParseTypeSpecifier;
+    Result.Add(TParameterNode.Create(ParamName, ParamType));
+
+    while FCurrentToken.TokenType = ttSemicolon do
+    begin
+      Eat(ttSemicolon);
+      ParamName := FCurrentToken.Lexeme;
+      Eat(ttIdentifier);
+      Eat(ttColon);
+      ParamType := ParseTypeSpecifier;
+      Result.Add(TParameterNode.Create(ParamName, ParamType));
+    end;
+  end;
+  Eat(ttRParen);
+end;
+
 function TParser.ParseProcedureDeclaration: TProcedureDeclarationNode;
 var
   ProcName: string;
+  Params: TParameterList;
+  Visibility: string;
   Body: TStatementList;
 begin
   Eat(ttProcedure);
   ProcName := FCurrentToken.Lexeme;
   Eat(ttIdentifier);
 
-  while (FCurrentToken.TokenType <> ttBegin) and (FCurrentToken.TokenType <> ttEOF) do
+  if FCurrentToken.TokenType = ttLParen then
+    Params := ParseParameterList
+  else
+    Params := TParameterList.Create;
+
+  Visibility := '';
+  if FCurrentToken.TokenType = ttIdentifier then
   begin
-      FCurrentToken := FLexer.NextToken;
+    Visibility := FCurrentToken.Lexeme;
+    Eat(ttIdentifier);
   end;
 
+  Eat(ttSemicolon);
   Body := ParseStatementList;
-  Result := TProcedureDeclarationNode.Create(ProcName, Body);
+  Result := TProcedureDeclarationNode.Create(ProcName, Params, Visibility, Body);
   Eat(ttSemicolon);
 end;
 
 function TParser.ParseFunctionDeclaration: TFunctionDeclarationNode;
 var
   FuncName: string;
+  Params: TParameterList;
+  Visibility: string;
   Body: TStatementList;
 begin
   Eat(ttFunction);
   FuncName := FCurrentToken.Lexeme;
   Eat(ttIdentifier);
 
-  while (FCurrentToken.TokenType <> ttBegin) and (FCurrentToken.TokenType <> ttEOF) do
+  if FCurrentToken.TokenType = ttLParen then
+    Params := ParseParameterList
+  else
+    Params := TParameterList.Create;
+
+  // Optional: visibility specifier
+  Visibility := '';
+  if FCurrentToken.TokenType = ttIdentifier then
   begin
-      FCurrentToken := FLexer.NextToken;
+    Visibility := FCurrentToken.Lexeme;
+    Eat(ttIdentifier);
   end;
 
+  Eat(ttSemicolon);
   Body := ParseStatementList;
-  Result := TFunctionDeclarationNode.Create(FuncName, Body);
+  Result := TFunctionDeclarationNode.Create(FuncName, Params, Visibility, Body);
   Eat(ttSemicolon);
 end;
 
 function TParser.ParseConstructorDeclaration: TConstructorDeclarationNode;
+var
+  Params: TParameterList;
+  Body: TStatementList;
 begin
   Eat(ttConstructor);
 
-  while (FCurrentToken.TokenType <> ttBegin) and (FCurrentToken.TokenType <> ttEOF) do
-  begin
-      FCurrentToken := FLexer.NextToken;
-  end;
+  if FCurrentToken.TokenType = ttIdentifier then
+    Eat(ttIdentifier);
 
-  // For now, we still skip the constructor body
-  Eat(ttBegin);
-  while FCurrentToken.TokenType <> ttEnd do
-    FCurrentToken := FLexer.NextToken;
-  Eat(ttEnd);
+  if FCurrentToken.TokenType = ttLParen then
+    Params := ParseParameterList
+  else
+    Params := TParameterList.Create;
+
   Eat(ttSemicolon);
 
-  Result := TConstructorDeclarationNode.Create;
+  Body := ParseStatementList;
+
+  Result := TConstructorDeclarationNode.Create(Params, Body);
+  Eat(ttSemicolon);
 end;
 
 procedure TParser.ParseDeclarations(AContract: TContractNode);

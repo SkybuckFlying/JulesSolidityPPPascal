@@ -26,6 +26,10 @@ type
     procedure VisitAssignmentStatementNode(ANode: TAssignmentStatementNode);
     procedure VisitVariableReferenceNode(ANode: TVariableReferenceNode);
     procedure VisitIntegerLiteralNode(ANode: TIntegerLiteralNode);
+    procedure VisitBooleanLiteralNode(ANode: TBooleanLiteralNode);
+    procedure VisitIfStatementNode(ANode: TIfStatementNode);
+    procedure VisitEmitStatementNode(ANode: TEmitStatementNode);
+    procedure VisitMemberAccessNode(ANode: TMemberAccessNode);
   public
     constructor Create;
     destructor Destroy; override;
@@ -85,6 +89,14 @@ begin
     VisitVariableReferenceNode(TVariableReferenceNode(ANode))
   else if ANode is TIntegerLiteralNode then
     VisitIntegerLiteralNode(TIntegerLiteralNode(ANode))
+  else if ANode is TBooleanLiteralNode then
+    VisitBooleanLiteralNode(TBooleanLiteralNode(ANode))
+  else if ANode is TIfStatementNode then
+    VisitIfStatementNode(TIfStatementNode(ANode))
+  else if ANode is TEmitStatementNode then
+    VisitEmitStatementNode(TEmitStatementNode(ANode))
+  else if ANode is TMemberAccessNode then
+    VisitMemberAccessNode(TMemberAccessNode(ANode))
   else
     raise Exception.Create('Unsupported AST node type for code generation');
 end;
@@ -105,23 +117,25 @@ end;
 
 procedure TCodeGenerator.VisitEventDeclarationNode(ANode: TEventDeclarationNode);
 begin
-  // Events are handled by the runtime, not directly in bytecode for now.
+  // Not generating code for event declarations themselves.
 end;
 
 procedure TCodeGenerator.VisitProcedureDeclarationNode(ANode: TProcedureDeclarationNode);
 var
   Statement: TStatementNode;
 begin
-  // In a real compiler, we would handle function entry/exit, parameters, etc.
   for Statement in ANode.Body do
     Visit(Statement);
   FChunk.WriteOp(opHalt);
 end;
 
 procedure TCodeGenerator.VisitFunctionDeclarationNode(ANode: TFunctionDeclarationNode);
+var
+  Statement: TStatementNode;
 begin
-  // For now, treat as a procedure.
-  VisitProcedureDeclarationNode(TProcedureDeclarationNode(ANode));
+  for Statement in ANode.Body do
+    Visit(Statement);
+  FChunk.WriteOp(opHalt);
 end;
 
 procedure TCodeGenerator.VisitConstructorDeclarationNode(ANode: TConstructorDeclarationNode);
@@ -138,15 +152,11 @@ procedure TCodeGenerator.VisitAssignmentStatementNode(ANode: TAssignmentStatemen
 var
   VarIndex: integer;
 begin
-  // Generate code for the expression first, which will leave its value on the stack.
   Visit(ANode.Expression);
-
-  // Then, generate code to store the value.
   if not FVariables.TryGetValue(ANode.Variable.Name, VarIndex) then
     raise Exception.CreateFmt('CodeGen: Undeclared identifier %s', [ANode.Variable.Name]);
-
   FChunk.WriteOp(opStore);
-  FChunk.Write(VarIndex); // Write the variable's "address" (slot index).
+  FChunk.Write(VarIndex);
 end;
 
 procedure TCodeGenerator.VisitVariableReferenceNode(ANode: TVariableReferenceNode);
@@ -155,7 +165,6 @@ var
 begin
   if not FVariables.TryGetValue(ANode.Name, VarIndex) then
     raise Exception.CreateFmt('CodeGen: Undeclared identifier %s', [ANode.Name]);
-
   FChunk.WriteOp(opLoad);
   FChunk.Write(VarIndex);
 end;
@@ -163,7 +172,51 @@ end;
 procedure TCodeGenerator.VisitIntegerLiteralNode(ANode: TIntegerLiteralNode);
 begin
   FChunk.WriteOp(opPush);
-  FChunk.Write(ANode.Value); // For now, assumes values fit in a single byte.
+  FChunk.Write(ANode.Value);
+end;
+
+procedure TCodeGenerator.VisitBooleanLiteralNode(ANode: TBooleanLiteralNode);
+begin
+  FChunk.WriteOp(opPush);
+  if ANode.Value then
+    FChunk.Write(1)
+  else
+    FChunk.Write(0);
+end;
+
+procedure TCodeGenerator.VisitIfStatementNode(ANode: TIfStatementNode);
+var
+  JumpAddress, EndAddress: integer;
+  Statement: TStatementNode;
+begin
+  Visit(ANode.Condition);
+  FChunk.WriteOp(opJumpIfFalse);
+  JumpAddress := FChunk.Count;
+  FChunk.Write(0);
+  for Statement in ANode.ThenBranch do
+    Visit(Statement);
+  EndAddress := FChunk.Count;
+  FChunk.Patch(JumpAddress, EndAddress);
+end;
+
+procedure TCodeGenerator.VisitEmitStatementNode(ANode: TEmitStatementNode);
+var
+  Arg: TExpressionNode;
+begin
+  for Arg in ANode.Arguments do
+    Visit(Arg);
+
+  FChunk.WriteOp(opEmit);
+  FChunk.Write(ANode.Arguments.Count);
+end;
+
+procedure TCodeGenerator.VisitMemberAccessNode(ANode: TMemberAccessNode);
+begin
+  // For now, this is a placeholder. A real implementation would handle
+  // different objects (like 'msg') and members (like 'sender').
+  // We'll just push a placeholder value (0) for now.
+  FChunk.WriteOp(opPush);
+  FChunk.Write(0);
 end;
 
 end.

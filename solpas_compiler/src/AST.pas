@@ -16,6 +16,19 @@ type
   TExpressionNode = class(TASTNode);
   TStatementNode = class(TASTNode);
 
+  TExpressionList = specialize TList<TExpressionNode>;
+
+  TEmitStatementNode = class(TStatementNode)
+  private
+    FEventName: string;
+    FArguments: TExpressionList;
+  public
+    constructor Create(AEventName: string; AArguments: TExpressionList);
+    destructor Destroy; override;
+    property EventName: string read FEventName;
+    property Arguments: TExpressionList read FArguments;
+  end;
+
   TStatementList = specialize TList<TStatementNode>;
 
   TVariableReferenceNode = class(TExpressionNode)
@@ -24,6 +37,17 @@ type
   public
     constructor Create(AName: string);
     property Name: string read FName;
+  end;
+
+  TMemberAccessNode = class(TExpressionNode)
+  private
+    FObject: TExpressionNode;
+    FMemberName: string;
+  public
+    constructor Create(AObject: TExpressionNode; AMemberName: string);
+    destructor Destroy; override;
+    property Obj: TExpressionNode read FObject;
+    property MemberName: string read FMemberName;
   end;
 
   TIntegerLiteralNode = class(TExpressionNode)
@@ -53,6 +77,18 @@ type
     property Expression: TExpressionNode read FExpression;
   end;
 
+  TIfStatementNode = class(TStatementNode)
+  private
+    FCondition: TExpressionNode;
+    FThenBranch: TStatementList;
+    // FElseBranch: TStatementList will be added later
+  public
+    constructor Create(ACondition: TExpressionNode; AThenBranch: TStatementList);
+    destructor Destroy; override;
+    property Condition: TExpressionNode read FCondition;
+    property ThenBranch: TStatementList read FThenBranch;
+  end;
+
   TTypeSpecifierNode = class(TASTNode)
   private
     FName: string;
@@ -72,25 +108,48 @@ type
     property VarType: TTypeSpecifierNode read FType;
   end;
 
+  TParameterNode = class(TASTNode)
+  private
+    FName: string;
+    FType: TTypeSpecifierNode;
+  public
+    constructor Create(AName: string; AType: TTypeSpecifierNode);
+    destructor Destroy; override;
+    property Name: string read FName;
+    property ParamType: TTypeSpecifierNode read FType;
+  end;
+
+  TParameterList = specialize TList<TParameterNode>;
+
   TFunctionDeclarationNode = class(TASTNode)
   private
     FName: string;
+    FParams: TParameterList;
+    FReturnType: TTypeSpecifierNode;
+    FVisibility: string;
     FBody: TStatementList;
   public
-    constructor Create(AName: string; ABody: TStatementList);
+    constructor Create(AName: string; AParams: TParameterList; AReturnType: TTypeSpecifierNode; AVisibility: string; ABody: TStatementList);
     destructor Destroy; override;
     property Name: string read FName;
+    property Params: TParameterList read FParams;
+    property ReturnType: TTypeSpecifierNode read FReturnType;
+    property Visibility: string read FVisibility;
     property Body: TStatementList read FBody;
   end;
 
   TProcedureDeclarationNode = class(TASTNode)
   private
     FName: string;
+    FParams: TParameterList;
+    FVisibility: string;
     FBody: TStatementList;
   public
-    constructor Create(AName: string; ABody: TStatementList);
+    constructor Create(AName: string; AParams: TParameterList; AVisibility: string; ABody: TStatementList);
     destructor Destroy; override;
     property Name: string read FName;
+    property Params: TParameterList read FParams;
+    property Visibility: string read FVisibility;
     property Body: TStatementList read FBody;
   end;
 
@@ -103,8 +162,14 @@ type
   end;
 
   TConstructorDeclarationNode = class(TASTNode)
+  private
+    FParams: TParameterList;
+    FBody: TStatementList;
   public
-    constructor Create;
+    constructor Create(AParams: TParameterList; ABody: TStatementList);
+    destructor Destroy; override;
+    property Params: TParameterList read FParams;
+    property Body: TStatementList read FBody;
   end;
 
   TTypeDeclarationNode = class(TASTNode)
@@ -142,6 +207,21 @@ begin
   FName := AName;
 end;
 
+{ TMemberAccessNode }
+
+constructor TMemberAccessNode.Create(AObject: TExpressionNode; AMemberName: string);
+begin
+  inherited Create;
+  FObject := AObject;
+  FMemberName := AMemberName;
+end;
+
+destructor TMemberAccessNode.Destroy;
+begin
+  FObject.Free;
+  inherited;
+end;
+
 { TIntegerLiteralNode }
 
 constructor TIntegerLiteralNode.Create(AValue: integer);
@@ -174,6 +254,45 @@ begin
   inherited;
 end;
 
+{ TIfStatementNode }
+
+constructor TIfStatementNode.Create(ACondition: TExpressionNode; AThenBranch: TStatementList);
+begin
+  inherited Create;
+  FCondition := ACondition;
+  FThenBranch := AThenBranch;
+end;
+
+destructor TIfStatementNode.Destroy;
+var
+  Node: TStatementNode;
+begin
+  FCondition.Free;
+  for Node in FThenBranch do
+    Node.Free;
+  FThenBranch.Free;
+  inherited;
+end;
+
+{ TEmitStatementNode }
+
+constructor TEmitStatementNode.Create(AEventName: string; AArguments: TExpressionList);
+begin
+  inherited Create;
+  FEventName := AEventName;
+  FArguments := AArguments;
+end;
+
+destructor TEmitStatementNode.Destroy;
+var
+  Node: TExpressionNode;
+begin
+  for Node in FArguments do
+    Node.Free;
+  FArguments.Free;
+  inherited;
+end;
+
 { TTypeSpecifierNode }
 
 constructor TTypeSpecifierNode.Create(AName: string);
@@ -197,19 +316,45 @@ begin
   inherited;
 end;
 
-{ TFunctionDeclarationNode }
+{ TParameterNode }
 
-constructor TFunctionDeclarationNode.Create(AName: string; ABody: TStatementList);
+constructor TParameterNode.Create(AName: string; AType: TTypeSpecifierNode);
 begin
   inherited Create;
   FName := AName;
+  FType := AType;
+end;
+
+destructor TParameterNode.Destroy;
+begin
+  FType.Free;
+  inherited;
+end;
+
+{ TFunctionDeclarationNode }
+
+constructor TFunctionDeclarationNode.Create(AName: string; AParams: TParameterList; AReturnType: TTypeSpecifierNode; AVisibility: string; ABody: TStatementList);
+begin
+  inherited Create;
+  FName := AName;
+  FParams := AParams;
+  FReturnType := AReturnType;
+  FVisibility := AVisibility;
   FBody := ABody;
 end;
 
 destructor TFunctionDeclarationNode.Destroy;
 var
   Node: TStatementNode;
+  ParamNode: TParameterNode;
 begin
+  for ParamNode in FParams do
+    ParamNode.Free;
+  FParams.Free;
+
+  if Assigned(FReturnType) then
+    FReturnType.Free;
+
   for Node in FBody do
     Node.Free;
   FBody.Free;
@@ -218,17 +363,24 @@ end;
 
 { TProcedureDeclarationNode }
 
-constructor TProcedureDeclarationNode.Create(AName: string; ABody: TStatementList);
+constructor TProcedureDeclarationNode.Create(AName: string; AParams: TParameterList; AVisibility: string; ABody: TStatementList);
 begin
   inherited Create;
   FName := AName;
+  FParams := AParams;
+  FVisibility := AVisibility;
   FBody := ABody;
 end;
 
 destructor TProcedureDeclarationNode.Destroy;
 var
   Node: TStatementNode;
+  ParamNode: TParameterNode;
 begin
+  for ParamNode in FParams do
+    ParamNode.Free;
+  FParams.Free;
+
   for Node in FBody do
     Node.Free;
   FBody.Free;
@@ -245,9 +397,26 @@ end;
 
 { TConstructorDeclarationNode }
 
-constructor TConstructorDeclarationNode.Create;
+constructor TConstructorDeclarationNode.Create(AParams: TParameterList; ABody: TStatementList);
 begin
   inherited Create;
+  FParams := AParams;
+  FBody := ABody;
+end;
+
+destructor TConstructorDeclarationNode.Destroy;
+var
+  ParamNode: TParameterNode;
+  Node: TStatementNode;
+begin
+  for ParamNode in FParams do
+    ParamNode.Free;
+  FParams.Free;
+
+  for Node in FBody do
+    Node.Free;
+  FBody.Free;
+  inherited;
 end;
 
 { TTypeDeclarationNode }

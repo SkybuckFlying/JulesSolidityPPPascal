@@ -23,6 +23,11 @@ type
     procedure VisitVariableReferenceNode(ANode: TVariableReferenceNode);
     procedure VisitIntegerLiteralNode(ANode: TIntegerLiteralNode);
     procedure VisitBooleanLiteralNode(ANode: TBooleanLiteralNode);
+    procedure VisitIfStatementNode(ANode: TIfStatementNode);
+    procedure VisitEmitStatementNode(ANode: TEmitStatementNode);
+    procedure VisitMemberAccessNode(ANode: TMemberAccessNode);
+    procedure VisitParameterNode(ANode: TParameterNode);
+
   public
     constructor Create;
     destructor Destroy; override;
@@ -54,6 +59,8 @@ begin
   BuiltInTypeSymbol := TSymbol.Create('address', nil);
   FCurrentScope.Define(BuiltInTypeSymbol);
   BuiltInTypeSymbol := TSymbol.Create('TDictionary', nil);
+  FCurrentScope.Define(BuiltInTypeSymbol);
+  BuiltInTypeSymbol := TSymbol.Create('msg', nil); // Special global object
   FCurrentScope.Define(BuiltInTypeSymbol);
 end;
 
@@ -99,6 +106,14 @@ begin
     VisitIntegerLiteralNode(TIntegerLiteralNode(ANode))
   else if ANode is TBooleanLiteralNode then
     VisitBooleanLiteralNode(TBooleanLiteralNode(ANode))
+  else if ANode is TIfStatementNode then
+    VisitIfStatementNode(TIfStatementNode(ANode))
+  else if ANode is TEmitStatementNode then
+    VisitEmitStatementNode(TEmitStatementNode(ANode))
+  else if ANode is TMemberAccessNode then
+    VisitMemberAccessNode(TMemberAccessNode(ANode))
+  else if ANode is TParameterNode then
+    VisitParameterNode(TParameterNode(ANode))
   else
     raise Exception.Create('Unsupported AST node type');
 end;
@@ -151,6 +166,7 @@ procedure TSemanticAnalyzer.VisitProcedureDeclarationNode(ANode: TProcedureDecla
 var
   Symbol: TSymbol;
   Statement: TStatementNode;
+  ParamNode: TParameterNode;
   ProcScope: TSymbolTable;
 begin
   Symbol := TSymbol.Create(ANode.Name, ANode);
@@ -159,6 +175,9 @@ begin
 
   ProcScope := TSymbolTable.Create(FCurrentScope);
   FCurrentScope := ProcScope;
+
+  for ParamNode in ANode.Params do
+    Visit(ParamNode);
 
   for Statement in ANode.Body do
     Visit(Statement);
@@ -171,6 +190,7 @@ procedure TSemanticAnalyzer.VisitFunctionDeclarationNode(ANode: TFunctionDeclara
 var
   Symbol: TSymbol;
   Statement: TStatementNode;
+  ParamNode: TParameterNode;
   FuncScope: TSymbolTable;
 begin
   Symbol := TSymbol.Create(ANode.Name, ANode);
@@ -180,6 +200,9 @@ begin
   FuncScope := TSymbolTable.Create(FCurrentScope);
   FCurrentScope := FuncScope;
 
+  for ParamNode in ANode.Params do
+    Visit(ParamNode);
+
   for Statement in ANode.Body do
     Visit(Statement);
 
@@ -188,8 +211,22 @@ begin
 end;
 
 procedure TSemanticAnalyzer.VisitConstructorDeclarationNode(ANode: TConstructorDeclarationNode);
+var
+  Statement: TStatementNode;
+  ParamNode: TParameterNode;
+  ConstructorScope: TSymbolTable;
 begin
-  // For now, we don't need to do anything special.
+  ConstructorScope := TSymbolTable.Create(FCurrentScope);
+  FCurrentScope := ConstructorScope;
+
+  for ParamNode in ANode.Params do
+    Visit(ParamNode);
+
+  for Statement in ANode.Body do
+    Visit(Statement);
+
+  FCurrentScope := FCurrentScope.Parent;
+  ConstructorScope.Free;
 end;
 
 procedure TSemanticAnalyzer.VisitTypeDeclarationNode(ANode: TTypeDeclarationNode);
@@ -222,6 +259,47 @@ end;
 procedure TSemanticAnalyzer.VisitBooleanLiteralNode(ANode: TBooleanLiteralNode);
 begin
   // No analysis needed for a literal
+end;
+
+procedure TSemanticAnalyzer.VisitIfStatementNode(ANode: TIfStatementNode);
+var
+  Statement: TStatementNode;
+begin
+  Visit(ANode.Condition);
+  for Statement in ANode.ThenBranch do
+    Visit(Statement);
+end;
+
+procedure TSemanticAnalyzer.VisitEmitStatementNode(ANode: TEmitStatementNode);
+var
+  Symbol: TSymbol;
+  Arg: TExpressionNode;
+begin
+  Symbol := FCurrentScope.Resolve(ANode.EventName);
+  if Symbol = nil then
+    raise Exception.CreateFmt('Undeclared event: %s', [ANode.EventName]);
+
+  if not (Symbol.SymbolType is TEventDeclarationNode) then
+    raise Exception.CreateFmt('%s is not an event', [ANode.EventName]);
+
+  for Arg in ANode.Arguments do
+    Visit(Arg);
+end;
+
+procedure TSemanticAnalyzer.VisitMemberAccessNode(ANode: TMemberAccessNode);
+begin
+  Visit(ANode.Obj);
+  // In a real compiler, we would check if Obj has the member MemberName.
+end;
+
+procedure TSemanticAnalyzer.VisitParameterNode(ANode: TParameterNode);
+var
+  Symbol: TSymbol;
+begin
+  // In a real compiler, we would check the parameter's type.
+  Symbol := TSymbol.Create(ANode.Name, ANode.ParamType);
+  if not FCurrentScope.Define(Symbol) then
+    raise Exception.CreateFmt('Duplicate parameter identifier: %s', [ANode.Name]);
 end;
 
 end.

@@ -2,14 +2,32 @@ contract SimpleToken;
 
 var
   owner: address;
+  balances: TDictionary<address, cardinal>;
   totalSupply: cardinal;
+  canTransfer: boolean;
 
-procedure create();
+event Transfer(from: address; to: address; value: cardinal);
+
+constructor Create(initialSupply: cardinal);
 begin
-  // This contract is simplified to demonstrate the compiler's
-  // core functionality with simple variable assignments.
-  // Full features like complex assignments and events are not yet supported.
-  totalSupply := 1000;
+  owner := msg.sender;
+  totalSupply := initialSupply;
+  canTransfer := true;
+end;
+
+function transfer(recipient: address; value: cardinal) public;
+begin
+  if canTransfer then
+  begin
+    // Balance check and transfer logic would go here.
+    // This is a placeholder to test the 'if' and 'emit' statements.
+  end;
+  emit Transfer(msg.sender, recipient, value);
+end;
+
+function balanceOf(account: address): cardinal public;
+begin
+  // result := balances[account];
 end;
 
 end.

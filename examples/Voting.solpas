@@ -2,15 +2,33 @@ contract Voting;
 
 var
   chairperson: address;
-  proposalCount: cardinal;
-  hasVoted: boolean;
+  voterAllowed: TDictionary<address, boolean>;
+  hasVoted: TDictionary<address, boolean>;
 
-procedure vote(); public;
+constructor Create();
 begin
-  // This contract is simplified to demonstrate the compiler's
-  // core functionality with simple variable assignments.
-  // Full features like array/mapping access are not yet supported.
-  hasVoted := true;
+  chairperson := msg.sender;
+end;
+
+procedure giveRightToVote(voter: address);
+begin
+  // A real implementation would check if sender is chairperson.
+  // if msg.sender <> chairperson then ...
+
+  if voterAllowed[voter] then
+  begin
+    // In a real contract, this would raise an exception.
+  end;
+  voterAllowed[voter] := true;
+end;
+
+procedure vote(proposal: cardinal);
+begin
+  if hasVoted[msg.sender] then
+  begin
+     // In a real contract, this would raise an exception.
+  end;
+  hasVoted[msg.sender] := true;
 end;
 
 end.
