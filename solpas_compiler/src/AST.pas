@@ -39,6 +39,17 @@ type
     property Name: string read FName;
   end;
 
+  TDictionaryAccessNode = class(TExpressionNode)
+  private
+    FDictionary: TExpressionNode;
+    FKey: TExpressionNode;
+  public
+    constructor Create(ADictionary, AKey: TExpressionNode);
+    destructor Destroy; override;
+    property Dictionary: TExpressionNode read FDictionary;
+    property Key: TExpressionNode read FKey;
+  end;
+
   TMemberAccessNode = class(TExpressionNode)
   private
     FObject: TExpressionNode;
@@ -205,6 +216,22 @@ constructor TVariableReferenceNode.Create(AName: string);
 begin
   inherited Create;
   FName := AName;
+end;
+
+{ TDictionaryAccessNode }
+
+constructor TDictionaryAccessNode.Create(ADictionary, AKey: TExpressionNode);
+begin
+  inherited Create;
+  FDictionary := ADictionary;
+  FKey := AKey;
+end;
+
+destructor TDictionaryAccessNode.Destroy;
+begin
+  FDictionary.Free;
+  FKey.Free;
+  inherited;
 end;
 
 { TMemberAccessNode }

@@ -29,6 +29,7 @@ type
     ttEmit,
     ttModifier,
     ttConstructor,
+    ttMsg,
 
     // Identifiers
     ttIdentifier,

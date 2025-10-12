@@ -15,6 +15,7 @@ type
     opJumpIfFalse, // Pop a value from the stack, if it's false (0), jump to a new location
     opJump,        // Unconditionally jump to a new location
     opEmit,        // Emit an event
+    opDictGet,     // Get a value from a dictionary
     opHalt    // Stop execution
   );
   TByte = Byte;

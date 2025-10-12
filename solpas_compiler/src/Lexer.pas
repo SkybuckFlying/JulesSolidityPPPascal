@@ -167,6 +167,7 @@ begin
   else if AIdentifier = 'constructor' then Result := ttConstructor
   else if AIdentifier = 'true' then Result := ttTrue
   else if AIdentifier = 'false' then Result := ttFalse
+  else if AIdentifier = 'msg' then Result := ttMsg
   else Result := ttIdentifier;
 end;
 

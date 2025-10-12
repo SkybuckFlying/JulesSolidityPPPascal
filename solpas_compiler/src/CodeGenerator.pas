@@ -30,6 +30,7 @@ type
     procedure VisitIfStatementNode(ANode: TIfStatementNode);
     procedure VisitEmitStatementNode(ANode: TEmitStatementNode);
     procedure VisitMemberAccessNode(ANode: TMemberAccessNode);
+    procedure VisitDictionaryAccessNode(ANode: TDictionaryAccessNode);
   public
     constructor Create;
     destructor Destroy; override;
@@ -97,6 +98,8 @@ begin
     VisitEmitStatementNode(TEmitStatementNode(ANode))
   else if ANode is TMemberAccessNode then
     VisitMemberAccessNode(TMemberAccessNode(ANode))
+  else if ANode is TDictionaryAccessNode then
+    VisitDictionaryAccessNode(TDictionaryAccessNode(ANode))
   else
     raise Exception.Create('Unsupported AST node type for code generation');
 end;
@@ -123,7 +126,13 @@ end;
 procedure TCodeGenerator.VisitProcedureDeclarationNode(ANode: TProcedureDeclarationNode);
 var
   Statement: TStatementNode;
+  Param: TParameterNode;
 begin
+  for Param in ANode.Params do
+  begin
+    FVariables.Add(Param.Name, FVarCount);
+    Inc(FVarCount);
+  end;
   for Statement in ANode.Body do
     Visit(Statement);
   FChunk.WriteOp(opHalt);
@@ -132,7 +141,13 @@ end;
 procedure TCodeGenerator.VisitFunctionDeclarationNode(ANode: TFunctionDeclarationNode);
 var
   Statement: TStatementNode;
+  Param: TParameterNode;
 begin
+  for Param in ANode.Params do
+  begin
+    FVariables.Add(Param.Name, FVarCount);
+    Inc(FVarCount);
+  end;
   for Statement in ANode.Body do
     Visit(Statement);
   FChunk.WriteOp(opHalt);
@@ -217,6 +232,13 @@ begin
   // We'll just push a placeholder value (0) for now.
   FChunk.WriteOp(opPush);
   FChunk.Write(0);
+end;
+
+procedure TCodeGenerator.VisitDictionaryAccessNode(ANode: TDictionaryAccessNode);
+begin
+  Visit(ANode.Key);
+  Visit(ANode.Dictionary);
+  FChunk.WriteOp(opDictGet);
 end;
 
 end.

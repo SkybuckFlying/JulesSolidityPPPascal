@@ -15,7 +15,8 @@ begin
   canTransfer := true;
 end;
 
-function transfer(recipient: address; value: cardinal) public;
+procedure transfer(recipient: address; value: cardinal);
+public;
 begin
   if canTransfer then
   begin
@@ -25,7 +26,8 @@ begin
   emit Transfer(msg.sender, recipient, value);
 end;
 
-function balanceOf(account: address): cardinal public;
+function balanceOf(account: address): cardinal;
+public;
 begin
   // result := balances[account];
 end;

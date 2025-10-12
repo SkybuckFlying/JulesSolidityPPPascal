@@ -169,12 +169,23 @@ begin
     raise Exception.CreateFmt('Unexpected token in expression: %s', [Token.Lexeme]);
   end;
 
-  if FCurrentToken.TokenType = ttDot then
+  while (FCurrentToken.TokenType = ttDot) or (FCurrentToken.TokenType = ttLBracket) do
   begin
-    Eat(ttDot);
-    MemberName := FCurrentToken.Lexeme;
-    Eat(ttIdentifier);
-    Node := TMemberAccessNode.Create(Node, MemberName);
+    if FCurrentToken.TokenType = ttDot then
+    begin
+      Eat(ttDot);
+      MemberName := FCurrentToken.Lexeme;
+      Eat(ttIdentifier);
+      Node := TMemberAccessNode.Create(Node, MemberName);
+    end
+    else if FCurrentToken.TokenType = ttLBracket then
+    begin
+      Eat(ttLBracket);
+      Node := TDictionaryAccessNode.Create(Node, ParseExpression);
+      Eat(ttRBracket);
+    end
+    else
+      break;
   end;
 
   Result := Node;
